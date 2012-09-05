@@ -39,10 +39,19 @@ public class DiabloForumScraper {
         Document doc = null;
         Connection connection = Jsoup.connect(url);
         connection.userAgent(USER_AGENT);
-        try {
-            doc = connection.get();
-        } catch (Exception e) {
-            e.printStackTrace();
+        int attempts = 0;
+        while (doc == null && attempts < 5) {
+            try {
+                doc = connection.get();
+            } catch (Exception e) {
+                e.printStackTrace();
+                attempts++;
+                try {
+                    Thread.currentThread().sleep(5000);
+                } catch(Exception ex){
+                    ex.printStackTrace();
+                }
+            }
         }
 
         return doc;
