@@ -39,13 +39,13 @@ public class DiabloData {
     }
     
     public void insertProfiles(List<String> profiles){
-        System.out.println("insertProfiles called on "+profiles.size()+" profiles");
+        //System.out.println("insertProfiles called on "+profiles.size()+" profiles");
         int countInserted = 0;
         for(String profile : profiles){
             DBObject query = new BasicDBObject("profile", profile);
             long count = profileCollection.count(query);
             if(count > 0){
-                System.out.println("Already have profile, skipping insert");
+                //System.out.println("Already have profile, skipping insert");
             } else {
                 WriteResult result = profileCollection.insert(query);
                 String error = result.getError();
@@ -57,6 +57,6 @@ public class DiabloData {
             }
         }
         
-        System.out.println("Finished with insertion. Inserted "+countInserted+" new profiles");
+        //System.out.println("Finished with insertion. Inserted "+countInserted+" new profiles");
     }
 }

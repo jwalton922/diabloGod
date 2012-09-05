@@ -60,12 +60,12 @@ public class DiabloForumScraper {
     public List<String> getForumTopicUrls(Document doc) {
         List<String> topicIds = new ArrayList<String>();
         Elements forumTopicRows = doc.select("tbody tr");
-        System.out.println("Found " + forumTopicRows.size() + " topics");
+        //System.out.println("Found " + forumTopicRows.size() + " topics");
         for (Element forumTopicRow : forumTopicRows) {
-            System.out.println("row html id = " + forumTopicRow.id());
+            //System.out.println("row html id = " + forumTopicRow.id());
             String topicId = forumTopicRow.id().replace("postRow", "");
             topicIds.add(topicId);
-            System.out.println("topicId = " + topicId);
+            //System.out.println("topicId = " + topicId);
 
         }
 
@@ -74,16 +74,16 @@ public class DiabloForumScraper {
 
     private String getNextPageLink(Document doc) {
         Elements nextPageSpans = doc.select("li.cap-item a span");
-        System.out.println("Found " + nextPageSpans.size() + " next page spans");
+       // System.out.println("Found " + nextPageSpans.size() + " next page spans");
         String nextPageLink = null;
         for (Element nextPageSpan : nextPageSpans) {
             String spanText = nextPageSpan.text();
-            System.out.println("Span text = " + spanText);
+            //System.out.println("Span text = " + spanText);
             if (spanText.equalsIgnoreCase("Next")) {
                 //get parent which is the link tag
                 Element parent = nextPageSpan.parent();
                 nextPageLink = parent.attr("href");
-                System.out.println("Next page link = " + nextPageLink);
+                //System.out.println("Next page link = " + nextPageLink);
                 break;
             }
         }
@@ -100,13 +100,13 @@ public class DiabloForumScraper {
         System.out.println("Retrieving topic page: " + topicPage);
         Document topicDocument = getDocument(topicPage);
         Elements profileLinks = topicDocument.select(".view-d3-profile");
-        System.out.println("Found " + profileLinks.size() + " profile links");
+        //System.out.println("Found " + profileLinks.size() + " profile links");
         for (Element profileLink : profileLinks) {
             String link = profileLink.attr("href");
             String profile = link.replace("/d3/en/profile/", "");
             //remove ending forward slash
             profile = profile.substring(0, profile.length() - 1);
-            System.out.println("Found profile: " + profile);
+            //System.out.println("Found profile: " + profile);
             profiles.add(profile);
         }
 
@@ -139,7 +139,9 @@ public class DiabloForumScraper {
         String nextPage = getNextPageLink(topicListDoc);
         int topicPagesProcessed = 1;
         while (nextPage != null && topicPagesProcessed < 5) {
-            Document nextPageDoc = getDocument(GENERAL_DISCUSSION_ROOT + nextPage);
+            String nextTopicPage = GENERAL_DISCUSSION_ROOT + nextPage;
+            System.out.println("Retrieving next topic page: "+nextTopicPage);
+            Document nextPageDoc = getDocument(nextTopicPage);
             processTopicListPage(nextPageDoc);
 
             topicPagesProcessed++;
