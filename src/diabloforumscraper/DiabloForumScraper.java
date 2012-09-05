@@ -31,6 +31,11 @@ public class DiabloForumScraper {
     private static final String FORUM_TOPIC_ROOT = DIABLO_ROOT+"forum/topic/";
     private static final String USER_AGENT = "Mozilla";
     
+    private DiabloData database;
+    
+    public DiabloForumScraper(DiabloData database){
+        this.database = database;
+    }
     
     public Document getDocument(String url){
         Document doc = null;
@@ -60,6 +65,25 @@ public class DiabloForumScraper {
         return topicIds;
     }
     
+    private String getNextPageLink(Document doc){
+        Elements nextPageSpans = doc.select("li.cap-item a span");
+        System.out.println("Found "+nextPageSpans.size()+" next page spans");
+        String nextPageLink = null;
+        for(Element nextPageSpan : nextPageSpans){
+            String spanText = nextPageSpan.text();
+            System.out.println("Span text = "+spanText);
+            if(spanText.equalsIgnoreCase("Next")){
+                //get parent which is the link tag
+                Element parent = nextPageSpan.parent();
+                nextPageLink = parent.attr("href");
+                System.out.println("Next page link = "+nextPageLink);
+                break;
+            }
+        }
+        
+        return nextPageLink;
+    }
+    
     private TopicScraperResult processTopic(String topicId, String pageLink){
         List<String> profiles = new ArrayList<String>();
         String topicPage = FORUM_TOPIC_ROOT+topicId;
@@ -78,60 +102,54 @@ public class DiabloForumScraper {
            System.out.println("Found profile: "+profile);
         }
         
-        Elements nextPageSpans = topicDocument.select("li.cap-item a span");
-        System.out.println("Found "+nextPageSpans.size()+" next page spans");
-        String nextPageLink = null;
-        for(Element nextPageSpan : nextPageSpans){
-            String spanText = nextPageSpan.text();
-            System.out.println("Span text = "+spanText);
-            if(spanText.equalsIgnoreCase("Next")){
-                //get parent which is the link tag
-                Element parent = nextPageSpan.parent();
-                nextPageLink = parent.attr("href");
-                System.out.println("Next page link = "+nextPageLink);
-                break;
-            }
-        }
+        String nextPageLink = getNextPageLink(topicDocument);
         
         TopicScraperResult result= new TopicScraperResult(profiles, nextPageLink);
         
         return result;
     }
     
-    
-    
-    
-    public String getHTML(String urlToRead) {
-        URL url;
-        HttpURLConnection conn;
-        BufferedReader rd;
-        String line;
-        String result = "";
-        try {
-            url = new URL(urlToRead);
-            conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
-            rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            while ((line = rd.readLine()) != null) {
-                result += line;
+    /*
+     * process a forum page that has links to topics like page: http://us.battle.net/d3/en/forum/3354739/
+     */
+    public void processTopicListPage(Document topicListDoc){
+        List<String> topicIds = getForumTopicUrls(topicListDoc);
+        String nextPageLink = null;
+        
+        for(String topicId : topicIds){
+            
+            TopicScraperResult result = processTopic(topicId, nextPageLink);
+            nextPageLink = result.nextPageLink;
+            processProfiles(result.profiles);
+            while(nextPageLink != null){
+                processTopic(topicId, nextPageLink);
             }
-            rd.close();
-        } catch (Exception e) {
-            e.printStackTrace();
         }
-        System.out.println(result);
-        return result;
+        
+        String nextPage = getNextPageLink(topicListDoc);
+        int topicPagesProcessed = 1;
+        while(nextPage != null && topicPagesProcessed < 5){
+            Document nextPageDoc = getDocument(GENERAL_DISCUSSION_ROOT+nextPage);
+            processTopicListPage(nextPageDoc);
+            
+            topicPagesProcessed++;
+        }
+    }
+    
+    public void processProfiles(List<String> profiles){
+        database.insertProfiles(profiles);
     }
 
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        // TODO code application logic here
-        DiabloForumScraper scraper = new DiabloForumScraper();
+        DiabloData database = new DiabloData();
+        DiabloForumScraper scraper = new DiabloForumScraper(database);
         Document doc = scraper.getDocument(GENERAL_DISCUSSION_ROOT);
-        List<String> topicIds = scraper.getForumTopicUrls(doc);
-        scraper.processTopic("6490010268", null);
+        
+        scraper.processTopicListPage(doc);
+        
     }
     
     private class TopicScraperResult {
