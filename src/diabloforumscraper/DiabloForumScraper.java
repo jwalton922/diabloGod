@@ -22,7 +22,7 @@ public class DiabloForumScraper {
 
     //private static Logger log = Logger.getLogger(DiabloForumScraper.class);
     private static final String DIABLO_ROOT = "http://us.battle.net/d3/en/";
-    private static final String GENERAL_DISCUSSION_ROOT = DIABLO_ROOT + "forum/3354739/";
+    private static final String GENERAL_DISCUSSION_ROOT = DIABLO_ROOT + "forum/3354739/?page=10";
     private static final String FORUM_TOPIC_ROOT = DIABLO_ROOT + "forum/topic/";
     private static final String USER_AGENT = "Mozilla";
     private DiabloData database;
@@ -59,7 +59,9 @@ public class DiabloForumScraper {
                     //do no try again, server error on page
                 }
             } catch (Exception e) {
+                 System.out.println("Error trying to connect");
                 e.printStackTrace();
+                attempts = Integer.MAX_VALUE;
             }
 
         }
@@ -127,6 +129,7 @@ public class DiabloForumScraper {
 
             return result;
         } else {
+             System.out.println("Document was null, encountered server error");
             //server error on page, so return empty results
             return new TopicScraperResult(new ArrayList<String>(), null);
         }
@@ -153,7 +156,7 @@ public class DiabloForumScraper {
 
         String nextPage = getNextPageLink(topicListDoc);
         int topicPagesProcessed = 1;
-        while (nextPage != null && topicPagesProcessed < 5) {
+        while (nextPage != null) {
             String nextTopicPage = GENERAL_DISCUSSION_ROOT + nextPage;
             System.out.println("Retrieving next topic page: " + nextTopicPage);
             Document nextPageDoc = getDocument(nextTopicPage);
