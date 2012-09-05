@@ -4,14 +4,10 @@
  */
 package diabloforumscraper;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
 import org.jsoup.Connection;
+import org.jsoup.Connection.Response;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -42,16 +38,30 @@ public class DiabloForumScraper {
         int attempts = 0;
         while (doc == null && attempts < 5) {
             try {
-                doc = connection.get();
+                Response response = connection.execute();
+                if (response.statusCode() == 200) {
+                    try {
+
+                        doc = connection.get();
+
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        attempts++;
+                        try {
+                            Thread.currentThread().sleep(5000);
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                } else {
+                    attempts = Integer.MAX_VALUE;
+                    //do no try again, server error on page
+                }
             } catch (Exception e) {
                 e.printStackTrace();
-                attempts++;
-                try {
-                    Thread.currentThread().sleep(5000);
-                } catch(Exception ex){
-                    ex.printStackTrace();
-                }
             }
+
         }
 
         return doc;
@@ -74,7 +84,7 @@ public class DiabloForumScraper {
 
     private String getNextPageLink(Document doc) {
         Elements nextPageSpans = doc.select("li.cap-item a span");
-       // System.out.println("Found " + nextPageSpans.size() + " next page spans");
+        // System.out.println("Found " + nextPageSpans.size() + " next page spans");
         String nextPageLink = null;
         for (Element nextPageSpan : nextPageSpans) {
             String spanText = nextPageSpan.text();
@@ -99,22 +109,27 @@ public class DiabloForumScraper {
         }
         System.out.println("Retrieving topic page: " + topicPage);
         Document topicDocument = getDocument(topicPage);
-        Elements profileLinks = topicDocument.select(".view-d3-profile");
-        //System.out.println("Found " + profileLinks.size() + " profile links");
-        for (Element profileLink : profileLinks) {
-            String link = profileLink.attr("href");
-            String profile = link.replace("/d3/en/profile/", "");
-            //remove ending forward slash
-            profile = profile.substring(0, profile.length() - 1);
-            //System.out.println("Found profile: " + profile);
-            profiles.add(profile);
+        if (topicDocument != null) {
+            Elements profileLinks = topicDocument.select(".view-d3-profile");
+            //System.out.println("Found " + profileLinks.size() + " profile links");
+            for (Element profileLink : profileLinks) {
+                String link = profileLink.attr("href");
+                String profile = link.replace("/d3/en/profile/", "");
+                //remove ending forward slash
+                profile = profile.substring(0, profile.length() - 1);
+                //System.out.println("Found profile: " + profile);
+                profiles.add(profile);
+            }
+
+            String nextPageLink = getNextPageLink(topicDocument);
+
+            TopicScraperResult result = new TopicScraperResult(profiles, nextPageLink);
+
+            return result;
+        } else {
+            //server error on page, so return empty results
+            return new TopicScraperResult(new ArrayList<String>(), null);
         }
-
-        String nextPageLink = getNextPageLink(topicDocument);
-
-        TopicScraperResult result = new TopicScraperResult(profiles, nextPageLink);
-
-        return result;
     }
 
     /*
@@ -140,8 +155,11 @@ public class DiabloForumScraper {
         int topicPagesProcessed = 1;
         while (nextPage != null && topicPagesProcessed < 5) {
             String nextTopicPage = GENERAL_DISCUSSION_ROOT + nextPage;
-            System.out.println("Retrieving next topic page: "+nextTopicPage);
+            System.out.println("Retrieving next topic page: " + nextTopicPage);
             Document nextPageDoc = getDocument(nextTopicPage);
+            if (nextPageDoc == null) {
+                continue;
+            }
             processTopicListPage(nextPageDoc);
 
             topicPagesProcessed++;
