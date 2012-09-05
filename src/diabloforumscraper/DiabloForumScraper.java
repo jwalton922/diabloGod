@@ -100,6 +100,7 @@ public class DiabloForumScraper {
            //remove ending forward slash
            profile = profile.substring(0, profile.length()-1);
            System.out.println("Found profile: "+profile);
+           profiles.add(profile);
         }
         
         String nextPageLink = getNextPageLink(topicDocument);
