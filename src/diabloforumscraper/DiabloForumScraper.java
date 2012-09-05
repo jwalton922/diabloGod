@@ -22,7 +22,7 @@ public class DiabloForumScraper {
 
     //private static Logger log = Logger.getLogger(DiabloForumScraper.class);
     private static final String DIABLO_ROOT = "http://us.battle.net/d3/en/";
-    private static final String GENERAL_DISCUSSION_ROOT = DIABLO_ROOT + "forum/3354739/?page=10";
+    private static final String GENERAL_DISCUSSION_ROOT = DIABLO_ROOT + "forum/3354739/";
     private static final String FORUM_TOPIC_ROOT = DIABLO_ROOT + "forum/topic/";
     private static final String USER_AGENT = "Mozilla";
     private DiabloData database;
