@@ -41,7 +41,7 @@ public class HeroGrabber {
      }
 
      public void getHeroes(){
-          DBCursor cursor = database.getProfileData(0);
+          DBCursor cursor = database.getProfileData(10501);
           int count = 0;
           while(cursor.hasNext()){
                DBObject profileData = cursor.next();
