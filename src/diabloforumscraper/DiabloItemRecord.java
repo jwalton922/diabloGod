@@ -5,6 +5,8 @@
 
 package diabloforumscraper;
 
+import com.mongodb.BasicDBObject;
+import com.mongodb.DBObject;
 import java.util.HashMap;
 import java.util.List;
 
@@ -32,6 +34,34 @@ public class DiabloItemRecord {
 
      public DiabloItemRecord(){
 
+     }
+
+     public DBObject toDBObject(){
+          DBObject object = new BasicDBObject();
+
+          object.put("accountMaxLevel", getAccountMaxLevel());
+          object.put("accountMaxParagonLevel",getAccountMaxParagonLevel());
+          object.put("accountProgress",getAccountProgress());
+          object.put("characterClass", getCharacterClass());
+          object.put("characterEliteKills",getCharacterEliteKills());
+          object.put("characterLevel", getCharacterLevel());
+          object.put("characterProgress", getCharacterProgress());
+          object.put("itemSlot", getItemSlot());
+          object.put("characterParagonLevel", getParagonLevel());
+          object.put("profile-name", getProfileName());
+          object.put("accountEliteKills", getTotalAccountEliteKills());
+
+          for(String itemStat : itemStats.keySet()){
+               object.put(itemStat, itemStats.get(itemStat));
+          }
+
+          for(Skill skill : skills){
+               BasicDBObject skillObject = new BasicDBObject();
+               skillObject.put("skill" , skill.getName());
+               skillObject.put("rune" , skill.getRune());
+          }
+
+          return object;
      }
 
      public int getAccountMaxLevel() {

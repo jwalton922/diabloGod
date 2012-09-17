@@ -5,6 +5,7 @@
 package diabloforumscraper;
 
 import com.mongodb.BasicDBObject;
+import com.mongodb.Bytes;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
@@ -12,6 +13,7 @@ import com.mongodb.DBObject;
 import com.mongodb.Mongo;
 import com.mongodb.WriteResult;
 import java.util.List;
+import org.apache.log4j.Logger;
 
 /**
  *
@@ -19,17 +21,20 @@ import java.util.List;
  */
 public class DiabloData {
 
+     private static Logger log = Logger.getLogger(DiabloData.class);
      private static final String MONGO_HOST = "localhost";
      private static final int MONGO_PORT = 27017;
      private static final String DB_NAME = "diablo";
      private static final String PROFILE_COLLECTION = "profiles";
      private static final String PROFILE_DATA_COLLECTION = "profileData";
      private static final String PROFILE_WITH_CHARACTERS_COLLECTION = "profilesWithCharacters";
+     private static final String ITEM_COLLECTION = "items";
      private Mongo m;
      private DB db;
      private DBCollection profileCollection;
      private DBCollection profileDataCollection;
      private DBCollection profileWithCharactersCollection;
+     private DBCollection itemCollection;
 
      public DiabloData() {
           try {
@@ -38,11 +43,44 @@ public class DiabloData {
                profileCollection = db.getCollection(PROFILE_COLLECTION);
                profileDataCollection = db.getCollection(PROFILE_DATA_COLLECTION);
                profileWithCharactersCollection = db.getCollection(PROFILE_WITH_CHARACTERS_COLLECTION);
+               itemCollection = db.getCollection(ITEM_COLLECTION);
           } catch (Exception e) {
                e.printStackTrace();
                System.exit(0);
           }
 
+     }
+
+     public int determineProfileIndex(String profile){
+          int index = -1;
+          DBCursor cursor = profileCollection.find();
+          while(cursor.hasNext()){
+               index++;
+               DBObject profileObject = cursor.next();
+               String foundProfile = (String) profileObject.get("profile");
+               if(profile.equalsIgnoreCase(foundProfile)){
+                    break;
+               }
+          }
+
+          return index;
+     }
+
+     public boolean haveItemDataForProfile(String profile) {
+          DBObject query = new BasicDBObject();
+          query.put("profile-name", profile);
+          long count = itemCollection.count(query);
+          if (count == 0) {
+               log.debug("Do not have any item data for: " + profile);
+               return false;
+          } else {
+               log.debug("Already have item data for profile: " + profile);
+               return true;
+          }
+     }
+
+     public void insertItemData(DBObject itemData) {
+          itemCollection.insert(itemData);
      }
 
      public void insertProfileData(DBObject profileData) {
@@ -58,8 +96,13 @@ public class DiabloData {
 
      public DBCursor getProfileNames(int offset) {
           DBCursor cursor = profileCollection.find();
-          cursor.skip(offset);
+          cursor = cursor.skip(offset);
+          cursor = cursor.addOption(Bytes.QUERYOPTION_NOTIMEOUT);
           return cursor;
+     }
+
+     public DBCursor getItemCursor(){
+          return itemCollection.find();
      }
 
      public DBCursor getProfileData(int offset) {
@@ -72,7 +115,7 @@ public class DiabloData {
           DBObject query = new BasicDBObject();
           query.put("profile-name", profileObject.get("profile-name"));
           long count = profileWithCharactersCollection.count(query);
-          if(count == 0){
+          if (count == 0) {
                profileWithCharactersCollection.insert(profileObject);
           }
      }
@@ -97,5 +140,11 @@ public class DiabloData {
           }
 
           System.out.println("Finished with insertion. Inserted " + countInserted + " new profiles");
+     }
+
+     public static void main(String[] args){
+          DiabloData database = new DiabloData();
+          int index = database.determineProfileIndex("RebelX924-1995");
+          System.out.println("index = "+index);
      }
 }

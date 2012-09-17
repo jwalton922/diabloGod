@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import org.apache.log4j.Logger;
+import org.apache.log4j.xml.DOMConfigurator;
 import org.jboss.resteasy.client.ClientRequest;
 import org.jboss.resteasy.client.ClientResponse;
 
@@ -31,6 +32,7 @@ public class DiabloItemCreator {
      }
 
      private void init() {
+          DOMConfigurator.configure("src/diabloforumscraper/log4j.xml");
           difficulties.add("normal");
           difficulties.add("nightmare");
           difficulties.add("hell");
@@ -48,96 +50,113 @@ public class DiabloItemCreator {
           itemSlots.add("waist");
           itemSlots.add("rightFinger");
           itemSlots.add("leftFinger");
-          itemSlots.add("neck ");
+          itemSlots.add("neck");
 
      }
 
      public List<DiabloItemRecord> createDiabloItems(String profile) {
           ArrayList<DiabloItemRecord> diabloItems = new ArrayList<DiabloItemRecord>();
 
-          DBObject profileObject = getProfileObject(profile);
-          if (profileObject != null) {
-               int accountProgress = calculateProgression(profileObject);
-               int accountEliteKills = getEliteKills(profileObject);
-               int maxCharacterLevel = Integer.MIN_VALUE;
-               int maxParagonLevel = Integer.MIN_VALUE;
-               log.debug(profile + " progress = " + accountProgress + " elite kills: " + accountEliteKills);
-               List<Integer> characterIds = getCharacterIds(profileObject);
-               List<DiabloItemRecord> accountItems = new ArrayList<DiabloItemRecord>();
-               for (Integer characterId : characterIds) {
-                    DBObject characterObject = getCharacter(profile, characterId);
-                    if (characterObject == null) {
-                         continue;
+          try {
+               DBObject profileObject = getProfileObject(profile);
+
+               if (profileObject != null) {
+                    String code = (String) profileObject.get("code");
+                    if (code != null && code.equalsIgnoreCase("oops")) {
+                         log.warn("Could not get profile for: " + profile + " reason: " + profileObject.get("reason"));
+                         return diabloItems;
+                    } else if (code != null) {
+                         log.warn("Could not get profile for: " + profile + " code = " + profileObject.get("code") + " reason: " + profileObject.get("reason"));
+                         return diabloItems;
                     }
-                    String characterClass = getCharacterClass(characterObject);
-                    boolean hardcore = isHardcore(characterObject);
-                    int characterLevel = getCharacterlevel(characterObject);
-                    int paragonLevel = getCharacterlevel(characterObject);
-                    if (characterLevel > maxCharacterLevel) {
-                         maxCharacterLevel = characterLevel;
-                    }
-                    if (paragonLevel > maxParagonLevel) {
-                         maxParagonLevel = paragonLevel;
-                    }
-                    int characterEliteKills = getEliteKills(characterObject);
-                    int characterProgress = calculateProgression(characterObject);
-                    List<Skill> skills = getSkills(characterObject);
-                    DBObject itemsObject = (DBObject) characterObject.get("items");
-                    for (String itemSlot : itemSlots) {
-                         DBObject itemObject = (DBObject) itemsObject.get(itemSlot);
-                         String itemURL = (String) itemObject.get("tooltipsParam");
-                         DBObject itemInfoObject = getItem(itemURL);
-                         if (itemInfoObject == null) {
-                              log.warn("Could not get item: " + itemURL);
+                    int accountProgress = calculateProgression(profileObject);
+                    int accountEliteKills = getEliteKills(profileObject);
+                    int maxCharacterLevel = Integer.MIN_VALUE;
+                    int maxParagonLevel = Integer.MIN_VALUE;
+                    log.debug(profile + " progress = " + accountProgress + " elite kills: " + accountEliteKills);
+                    List<Integer> characterIds = getCharacterIds(profileObject);
+
+                    for (Integer characterId : characterIds) {
+                         DBObject characterObject = getCharacter(profile, characterId);
+                         if (characterObject == null) {
+                              continue;
                          }
+                         String characterClass = getCharacterClass(characterObject);
+                         boolean hardcore = isHardcore(characterObject);
+                         int characterLevel = getCharacterlevel(characterObject);
+                         int paragonLevel = getParagonLevel(characterObject);
+                         if (characterLevel > maxCharacterLevel) {
+                              maxCharacterLevel = characterLevel;
+                         }
+                         if (paragonLevel > maxParagonLevel) {
+                              maxParagonLevel = paragonLevel;
+                         }
+                         int characterEliteKills = getEliteKills(characterObject);
+                         int characterProgress = calculateProgression(characterObject);
+                         List<Skill> skills = getSkills(characterObject);
+                         DBObject itemsObject = (DBObject) characterObject.get("items");
+                         log.trace("Items object: " + itemsObject.toString());
+                         for (String itemSlot : itemSlots) {
+                              DBObject itemObject = (DBObject) itemsObject.get(itemSlot);
+                              if (itemObject == null) {
+                                   log.trace("Character has no item for slot: " + itemSlot);
+                                   continue;
+                              }
+                              String itemURL = (String) itemObject.get("tooltipParams");
+                              DBObject itemInfoObject = getItem(itemURL);
+                              if (itemInfoObject == null) {
+                                   log.warn("Could not get item: " + itemURL);
+                              }
 
-                         HashMap<String, Double> itemStats = parseItemObject(itemInfoObject);
+                              HashMap<String, Double> itemStats = parseItemObject(itemInfoObject);
 
-                         DiabloItemRecord itemRecord = new DiabloItemRecord();
-                         itemRecord.setAccountProgress(accountProgress);
-                         itemRecord.setCharacterClass(characterClass);
-                         itemRecord.setCharacterEliteKills(characterEliteKills);
-                         itemRecord.setCharacterLevel(characterLevel);
-                         itemRecord.setCharacterProgress(characterProgress);
-                         itemRecord.setHardcore(hardcore);
-                         itemRecord.setItemSlot(itemSlot);
-                         itemRecord.setItemStats(itemStats);
-                         itemRecord.setParagonLevel(paragonLevel);
-                         itemRecord.setProfileName(profile);
-                         itemRecord.setSkills(skills);
-                         itemRecord.setTotalAccountEliteKills(accountEliteKills);
-                         accountItems.add(itemRecord);
+                              DiabloItemRecord itemRecord = new DiabloItemRecord();
+                              itemRecord.setAccountProgress(accountProgress);
+                              itemRecord.setCharacterClass(characterClass);
+                              itemRecord.setCharacterEliteKills(characterEliteKills);
+                              itemRecord.setCharacterLevel(characterLevel);
+                              itemRecord.setCharacterProgress(characterProgress);
+                              itemRecord.setHardcore(hardcore);
+                              itemRecord.setItemSlot(itemSlot);
+                              itemRecord.setItemStats(itemStats);
+                              itemRecord.setParagonLevel(paragonLevel);
+                              itemRecord.setProfileName(profile);
+                              itemRecord.setSkills(skills);
+                              itemRecord.setTotalAccountEliteKills(accountEliteKills);
+                              diabloItems.add(itemRecord);
 
-                    } //end for item loop
+                         } //end for item loop
 
-               } //end for character loop
+                    } //end for character loop
 
-               //set account wide max stats that have to be computed
-               for (DiabloItemRecord itemRecord : accountItems) {
-                    itemRecord.setAccountMaxLevel(maxCharacterLevel);
-                    itemRecord.setAccountMaxParagonLevel(maxParagonLevel);
+                    //set account wide max stats that have to be computed
+                    for (DiabloItemRecord itemRecord : diabloItems) {
+                         itemRecord.setAccountMaxLevel(maxCharacterLevel);
+                         itemRecord.setAccountMaxParagonLevel(maxParagonLevel);
+                    }
                }
+          } catch (Exception e) {
+               log.error("Error somewhere: ", e);
           }
-
           return diabloItems;
      }
 
      private HashMap<String, Double> parseItemObject(DBObject itemObject) {
           HashMap<String, Double> itemStats = new HashMap<String, Double>();
 
-          DBObject dpsObject = (DBObject) itemObject.get("dps");
-          if (dpsObject != null) {
-               itemStats.put("dps", Double.parseDouble((String) dpsObject.get("max")));
+          if (itemObject.get("dps") != null) {
+               DBObject dpsObject = (DBObject) itemObject.get("dps");
+               if (dpsObject != null) {
+                    itemStats.put("dps", (Double) dpsObject.get("max"));
+               }
           }
 
           DBObject attributesRawObject = (DBObject) itemObject.get("attributesRaw");
           for (String attribute : attributesRawObject.keySet()) {
-               DBObject attributeObject = (DBObject) attributesRawObject.get("attribute");
-               String minString = (String) attributeObject.get("min");
-               String maxString = (String) attributeObject.get("max");
+               DBObject attributeObject = (DBObject) attributesRawObject.get(attribute);
 
-               Double minVal = Double.parseDouble(minString.trim());
-               Double maxVal = Double.parseDouble(maxString.trim());
+               Double minVal = (Double) attributeObject.get("min");
+               Double maxVal = (Double) attributeObject.get("max");
                Double average = (minVal + maxVal) / 2.0;
 
                itemStats.put(attribute, average);
@@ -151,6 +170,7 @@ public class DiabloItemCreator {
           DBObject itemObject = null;
 
           String fullUrl = API_ROOT + "data/" + itemURL;
+          log.trace("item url: " + fullUrl);
           ClientRequest request = new ClientRequest(fullUrl);
           try {
                ClientResponse<String> response = request.get(String.class);
@@ -172,9 +192,15 @@ public class DiabloItemCreator {
           for (int i = 0; i < activeList.size(); i++) {
                DBObject activeSkillObject = (DBObject) activeList.get(i);
                DBObject activeSkill = (DBObject) activeSkillObject.get("skill");
+               if (activeSkill == null) {
+                    continue;
+               }
                String skillName = (String) activeSkill.get("name");
                DBObject rune = (DBObject) activeSkillObject.get("rune");
-               String runeName = (String) rune.get("name");
+               String runeName = "none";
+               if (rune != null) {
+                    runeName = (String) rune.get("name");
+               }
                Skill skill = new Skill(skillName, runeName);
                skills.add(skill);
           }
@@ -202,6 +228,7 @@ public class DiabloItemCreator {
      private DBObject getCharacter(String profileName, Integer characterId) {
           DBObject characterObject = null;
           String heroUrl = ProfileGrabber.API_ROOT + ProfileGrabber.PROFILE_URL + profileName + "/hero/" + characterId;
+          log.trace("character url: " + heroUrl);
           ClientRequest request = new ClientRequest(heroUrl);
 
           try {
@@ -250,7 +277,11 @@ public class DiabloItemCreator {
      private int calculateProgression(DBObject profileObject) {
           int progress = 0;
           DBObject progressionObject = (DBObject) profileObject.get("progression");
+          if (progressionObject == null) {
+               progressionObject = (DBObject) profileObject.get("progress");
+          }
           for (int i = 0; i < difficulties.size(); i++) {
+
                DBObject difficultyObject = (DBObject) progressionObject.get(difficulties.get(i));
                int difficultyProgress = 0;
                for (int j = 1; j <= NUMBER_ACTS; j++) {
@@ -289,5 +320,10 @@ public class DiabloItemCreator {
                log.error("Error retrieving profile. ", e);
           }
           return profileObject;
+     }
+
+     public static void main(String[] args) {
+          DiabloItemCreator itemCreator = new DiabloItemCreator();
+          itemCreator.createDiabloItems("Laidback-1346");
      }
 }
