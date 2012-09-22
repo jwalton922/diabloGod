@@ -25,7 +25,7 @@ public class ProfileGrabber {
      }
 
      public void insertProfileData(){
-          DBCursor cursor = database.getProfileNames(24893);
+          DBCursor cursor = database.getProfileNames(24893, 10000);
           int count = 0;
           while(cursor.hasNext()){
                DBObject profileNameObject = cursor.next();

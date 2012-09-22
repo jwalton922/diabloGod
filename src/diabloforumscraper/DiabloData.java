@@ -23,6 +23,8 @@ public class DiabloData {
 
      private static Logger log = Logger.getLogger(DiabloData.class);
      private static final String MONGO_HOST = "localhost";
+     private static final String MONGO_LAB_HOST = "ds037907.mongolab.com";
+     private static final int MONGO_LAB_PORT = 37907;
      private static final int MONGO_PORT = 27017;
      private static final String DB_NAME = "diablo";
      private static final String PROFILE_COLLECTION = "profiles";
@@ -30,7 +32,9 @@ public class DiabloData {
      private static final String PROFILE_WITH_CHARACTERS_COLLECTION = "profilesWithCharacters";
      private static final String ITEM_COLLECTION = "items";
      private Mongo m;
+     private Mongo mongoLabM;
      private DB db;
+     private DB mongoLabDB;
      private DBCollection profileCollection;
      private DBCollection profileDataCollection;
      private DBCollection profileWithCharactersCollection;
@@ -39,11 +43,15 @@ public class DiabloData {
      public DiabloData() {
           try {
                m = new Mongo(MONGO_HOST, MONGO_PORT);
+               mongoLabM = new Mongo(MONGO_LAB_HOST,MONGO_LAB_PORT);
                db = m.getDB(DB_NAME);
+               mongoLabDB = mongoLabM.getDB(DB_NAME);
+               String password = "diabloUser";
+               mongoLabDB.authenticate("diabloUser", password.toCharArray());
                profileCollection = db.getCollection(PROFILE_COLLECTION);
                profileDataCollection = db.getCollection(PROFILE_DATA_COLLECTION);
                profileWithCharactersCollection = db.getCollection(PROFILE_WITH_CHARACTERS_COLLECTION);
-               itemCollection = db.getCollection(ITEM_COLLECTION);
+               itemCollection = mongoLabDB.getCollection(ITEM_COLLECTION);
           } catch (Exception e) {
                e.printStackTrace();
                System.exit(0);
@@ -93,10 +101,18 @@ public class DiabloData {
                profileDataCollection.insert(profileData);
           }
      }
+     
+     public int getProfileNamesCount(){
+         int count = Integer.parseInt(""+profileCollection.count());
+         System.out.println("There are "+count+" profiles");
+         return count;
+         
+     }
 
-     public DBCursor getProfileNames(int offset) {
+     public DBCursor getProfileNames(int offset, int limit) {
           DBCursor cursor = profileCollection.find();
           cursor = cursor.skip(offset);
+          cursor = cursor.limit(limit);
           cursor = cursor.addOption(Bytes.QUERYOPTION_NOTIMEOUT);
           return cursor;
      }
