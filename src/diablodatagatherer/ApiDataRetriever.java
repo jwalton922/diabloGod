@@ -13,6 +13,7 @@ import com.mongodb.util.JSON;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.net.ConnectException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,9 +29,10 @@ public class ApiDataRetriever {
 
     public static final String API_ROOT = "http://us.battle.net/api/d3/";
     public static final String PROFILE_URL = "profile/";
-    public static final String ROOT_DIR = "/Users/jwalton/diabloRawFiles";
+    public static final String ROOT_DIR = "/C:/Users/Josh/Dropbox/Public/diabloRawFiles";
     private long time = System.currentTimeMillis();
     private List<String> itemSlots = new ArrayList<String>();
+    private long wait = 1000;
 
     public ApiDataRetriever() {
 
@@ -53,8 +55,9 @@ public class ApiDataRetriever {
     public List<String> findProfileNames() {
         List<String> profileNames = new ArrayList<String>();
         try {
-            Mongo m = new Mongo("localhost", 27017);
-            DB db = m.getDB("Downloads");
+            Mongo m = new Mongo("ds037907.mongolab.com", 37907);
+            DB db = m.getDB("diablo");
+            db.authenticate("diabloUser", "diabloUser".toCharArray());
             DBCollection profiles = db.getCollection("profiles");
             DBCursor cursor = profiles.find();
             while (cursor.hasNext()) {
@@ -76,7 +79,7 @@ public class ApiDataRetriever {
         ArrayList<String> profileFileNames = new ArrayList<String>();
         ArrayList<String> profileNames = new ArrayList<String>();
         ArrayList<String> profilesToUpdate = new ArrayList<String>();
-        System.out.println("# Files: "+profileFiles.length);
+        System.out.println("# Files: " + profileFiles.length);
         //sort files by time
         for (int i = 0; i < profileFiles.length; i++) {
             //System.out.println(i+": "+profileFiles[i]);
@@ -95,7 +98,7 @@ public class ApiDataRetriever {
                 //System.out.println("adding profile name: " + profileName);
                 profileNames.add(profileName);
             } else {
-                System.out.println("Profile name not as expected: "+Arrays.toString(profileFileSplit));
+                System.out.println("Profile name not as expected: " + Arrays.toString(profileFileSplit));
             }
         }
 
@@ -110,7 +113,7 @@ public class ApiDataRetriever {
         //add any profiles that have no data
         for (int i = 0; i < profiles.size(); i++) {
             if (!profilesToUpdate.contains(profiles.get(i))) {
-               // System.out.println("Profile has no data: "+profiles.get(i));
+                // System.out.println("Profile has no data: "+profiles.get(i));
                 profilesToUpdate.add(profiles.get(i));
             }
         }
@@ -120,13 +123,13 @@ public class ApiDataRetriever {
 //        for (int i = 0; i < profilesToUpdate.size(); i++) {
 //            System.out.println("final sorted profile: " + profilesToUpdate.get(i));
 //        }
-        
-        System.out.println("Final sorted profiles to update size: "+profilesToUpdate.size());
+
+        System.out.println("Final sorted profiles to update size: " + profilesToUpdate.size());
 
         return profilesToUpdate;
     }
-    
-    public List<String> getSortedProfiles(){
+
+    public List<String> getSortedProfiles() {
         List<String> profiles = findProfileNames();
         return sortProfiles(profiles);
     }
@@ -137,11 +140,36 @@ public class ApiDataRetriever {
         ClientResponse<String> response = null;
         try {
             response = request.get(String.class);
-        } catch (Exception e) {
+        } catch(ConnectException ce){
+            wait=wait*2;
+            System.out.println("Connect exception");
+            try {
+                System.out.println("Sleeping "+wait+" ms");
+                Thread.sleep(wait);
+                System.out.println("Done sleeping");
+                return;
+            } catch (Exception ex) {
+            }
+        }catch (Exception e) {
+            System.out.println("Could not get profile, waiting for : "+wait);
+            wait = wait * 2;
+
             e.printStackTrace();
+            try {
+                System.out.println("Sleeping "+wait+" ms");
+                Thread.sleep(wait);
+                return;
+            } catch (Exception ex) {
+            }
         }
         String profileString = response.getEntity();
+        DBObject profileObject = null;
         try {
+            profileObject = (DBObject) JSON.parse(profileString);
+            if((String) profileObject.get("code") != null){
+                System.out.println("API error retrieving profile for "+profile+": "+profileObject.get("code").toString());
+                return;
+            }
             String dirName = ROOT_DIR + "/" + "profiles";
             File dir = new File(dirName);
             if (!dir.exists()) {
@@ -153,12 +181,24 @@ public class ApiDataRetriever {
             profileWriter.flush();
             profileWriter.close();
         } catch (Exception e) {
-            System.out.println("Error writing profile file");
+            System.out.println("Error writing profile file: " + profileString);
             e.printStackTrace();
         }
-        DBObject profileObject = (DBObject) JSON.parse(profileString);
+        
         List<Integer> characterIds = getCharacterIds(profileObject);
-        List<String> itemUrls = new ArrayList<String>();
+        if (characterIds == null || characterIds.size() == 0) {
+            try {
+                wait = wait * 2;
+                System.out.println("Waiting for " + wait + " seconds");
+                Thread.sleep(wait);
+                return;
+            } catch (Exception e) {
+            }
+        } else {
+            System.out.println("call worked, resetting wait");
+            wait = 1000;
+        }
+        
         for (Integer characterId : characterIds) {
             String character = getCharacter(profile, characterId);
             String characterFileDir = ROOT_DIR + "/heroes/";
@@ -168,6 +208,18 @@ public class ApiDataRetriever {
             }
             String characterFileName = characterFileDir + time + "_" + characterId + "_" + profile + ".txt";
 
+            DBObject characterObject = null;
+            try {
+                characterObject = (DBObject) JSON.parse(character);
+            } catch(Exception e){
+                System.out.println("Error parsing character for profile = "+profile+" id = "+characterId+". "+e.getLocalizedMessage());
+                e.printStackTrace();
+            }
+            
+            if(characterObject == null || !(isValidAPIData(characterObject))){
+                System.out.println("Invalid character object, trying next character");
+                continue;
+            }
 
             try {
                 BufferedWriter characterWriter = new BufferedWriter(new FileWriter(characterFileName));
@@ -175,11 +227,10 @@ public class ApiDataRetriever {
                 characterWriter.flush();
                 characterWriter.close();
             } catch (Exception e) {
-                System.out.println("Error writing character data");
+                System.out.println("Error writing character data: " + character);
                 e.printStackTrace();
             }
             try {
-                DBObject characterObject = (DBObject) JSON.parse(character);
                 DBObject itemsObject = (DBObject) characterObject.get("items");
                 if (itemsObject == null) {
                     continue;
@@ -193,6 +244,20 @@ public class ApiDataRetriever {
                     String itemURL = (String) itemObject.get("tooltipParams");
                     //System.out.println("itemURl = "+itemURL);
                     String itemString = getItem(itemURL);
+                    
+                    DBObject itemApiObject = null;
+                    try {
+                        itemApiObject = (DBObject) JSON.parse(itemString);
+                    } catch(Exception e){
+                        System.out.println("Error parsing item object for url: "+itemURL+". "+e.getLocalizedMessage());
+                        e.printStackTrace();
+                    }
+                    
+                    if(itemApiObject == null || !(isValidAPIData(itemApiObject))){
+                        System.out.println("Error in API retrieving item.");
+                        continue;
+                    }
+                    
                     String itemDirName = ROOT_DIR + "/items/";
                     File itemDir = new File(itemDirName);
                     if (!itemDir.exists()) {
@@ -205,7 +270,7 @@ public class ApiDataRetriever {
                         bw.flush();
                         bw.close();
                     } catch (Exception e) {
-                        System.out.println("Error writing item file");
+                        System.out.println("Error writing item file: " + itemString);
                         e.printStackTrace();
                     }
 
@@ -217,6 +282,14 @@ public class ApiDataRetriever {
             }
         }
         System.out.println("Finished processing characters for profile " + profile);
+    }
+    
+    public static boolean isValidAPIData(DBObject object){
+        if(object != null && object.get("code") != null){
+            return false;
+        } else {
+            return true;
+        }
     }
 
     private String getItem(String itemURL) {
@@ -285,8 +358,8 @@ public class ApiDataRetriever {
         ApiDataRetriever dataRetriever = new ApiDataRetriever();
 
         List<String> sortedProfiles = dataRetriever.getSortedProfiles();
-        
-        for(String profile : sortedProfiles){
+
+        for (String profile : sortedProfiles) {
             dataRetriever.retrieveProfileData(profile);
         }
     }

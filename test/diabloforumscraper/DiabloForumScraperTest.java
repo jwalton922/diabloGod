@@ -42,8 +42,8 @@ public class DiabloForumScraperTest {
     @Test
     public void testGetForumRoot() {
         System.out.println("getForumRoot");
-        DiabloForumScraper instance = new DiabloForumScraper();
-        instance.getForumRoot();
+//        DiabloForumScraper instance = new DiabloForumScraper();
+//        instance.getForumRoot();
         // TODO review the generated test code and remove the default call to fail.
         fail("The test case is a prototype.");
     }
@@ -55,10 +55,10 @@ public class DiabloForumScraperTest {
     public void testGetHTML() {
         System.out.println("getHTML");
         String urlToRead = "";
-        DiabloForumScraper instance = new DiabloForumScraper();
-        String expResult = "";
-        String result = instance.getHTML(urlToRead);
-        assertEquals(expResult, result);
+//        DiabloForumScraper instance = new DiabloForumScraper();
+//        String expResult = "";
+//        String result = instance.getHTML(urlToRead);
+//        assertEquals(expResult, result);
         // TODO review the generated test code and remove the default call to fail.
         fail("The test case is a prototype.");
     }
