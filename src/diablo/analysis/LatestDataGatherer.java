@@ -84,9 +84,33 @@ public class LatestDataGatherer {
             List<File> heroFiles = gatherLatestHeroFiles(profile);
             for(int j = 0; j < heroFiles.size(); j++){
                 Hero hero = fileReader.getHeroFromFile(heroFiles.get(j), profile);
+                for(int k = 0; k < Constants.SLOTS.size(); k++){
+                    
+                }
             }
 
         }
+    }
+    
+    public Item getLatestItemForSlot(String slot, Profile profile, Hero hero){
+        
+        String itemEnding = slot+"_"+hero.get+"_"+profileName;
+        File itemDir = new File(DiabloFileReader.ITEMS_DIR);
+        String[] itemFiles = itemDir.list();
+        long latestTime = -1;
+        String latestFileName = null;
+        for(int i = 0; i < itemFiles.length; i++){
+            if(itemFiles[i].indexOf(itemEnding) >= 0){
+                String[] testFileSplit = itemFiles[i].split("_");
+                Long testTime = Long.parseLong(testFileSplit[0]);
+                if(testTime > latestTime){
+                    latestTime = testTime;
+                    latestFileName = itemFiles[i];
+                }
+            }
+        }
+        
+        Item
     }
 
     public List<File> gatherLatestHeroFiles(Profile profile) {

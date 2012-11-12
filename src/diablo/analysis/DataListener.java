@@ -9,5 +9,7 @@ package diablo.analysis;
  * @author Josh
  */
 public interface DataListener {
-    
+    public void processProfile(Profile profile);
+    public void processHero(Hero hero);
+    public void processItem(Item item);
 }
