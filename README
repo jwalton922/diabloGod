@@ -1,2 +1,4 @@
 Doing Analysis on Raw Data
 
+diablo.analysis.analytics.AnalyticRunner.java is an example of an analytic that computes the average max paragon level per account as well as keep count of the number
+of accounts at each paragon level.  
