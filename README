@@ -1,4 +1,33 @@
 Doing Analysis on Raw Data
 
-diablo.analysis.analytics.AnalyticRunner.java is an example of an analytic that computes the average max paragon level per account as well as keep count of the number
-of accounts at each paragon level.  
+diablo.analysis.analytics.AnalyticRunner.java is an example of an analytic that computes the average max paragon level per account as well as keep count of the number of accounts at each paragon level.  
+
+Data classes created by reading the files are:
+
+diablo.analysis.Profile
+diablo.analysis.Hero
+diablo.analysis.Item
+
+These classes contain most of the data contained in the raw files, but not all.  They also contain some additional data to help with finding other related files ie Hero class has a map of it's items' files.
+
+To create a new analytic, the DataListener interface needs to be implemented.  The LatestDataGatherer.java will emit the latest data per profile, per profile's heroes, and per profile's heroes' items.  The data will be emitted according to the following pseudo code:
+
+for each profile
+    find heroes
+    for each hero
+        find items
+    end for each hero
+    emit profile
+    emit heroes
+    emit items
+end for each profile
+
+So in the Data Listener you are guaranteed to have a profile first, then it's heroes, then the heroes' items.  
+
+Raw data file naming convention
+
+Profiles: {TIME OF DATA COLLECTION START}_{profile (name-4digitrandomNumber)}.txt
+Heroes: {TIME OF DATA COLLECTION START}_{hero id}_{}_{profile}.txt
+Items: {TIME OF DATA COLLECTION START}_{slot}_{hero_id}_{profile}.txt
+
+
