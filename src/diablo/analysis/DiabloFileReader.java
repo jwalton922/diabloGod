@@ -76,7 +76,7 @@ public class DiabloFileReader {
             br.close();
 
         } catch (Exception e) {
-            System.out.println("Error reading hero data: " + e.getLocalizedMessage());
+            System.out.println("Error reading hero data for file: " + f.getName() + "." + e.getLocalizedMessage());
             e.printStackTrace();
         }
         DBObject heroObject = null;
@@ -87,16 +87,50 @@ public class DiabloFileReader {
             e.printStackTrace();
         }
         Hero h = null;
-        if (heroObject != null) {
+        if (heroObject != null && heroObject.get("id") != null) {
             h = new Hero(heroObject, profile.getProfileName(), "" + profile.getDataTime());
 
         }
-        
+
         return h;
     }
 
     public Profile getProfileFromFile(String file) {
         return getProfileFromFile(new String(file));
+    }
+
+    public Item getItemFromFile(String file, Profile profile, Hero hero) {
+        return getItemFromFile(new File(file), profile, hero);
+    }
+
+    public Item getItemFromFile(File file, Profile profile, Hero hero) {
+        String itemData = "";
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            String line = null;
+            while ((line = br.readLine()) != null) {
+                itemData += line;
+            }
+
+            br.close();
+
+        } catch (Exception e) {
+            System.out.println("Error reading item data: " + e.getLocalizedMessage());
+            e.printStackTrace();
+        }
+        DBObject itemObject = null;
+        try {
+            itemObject = (DBObject) JSON.parse(itemData);
+        } catch (Exception e) {
+            System.out.println("Error parsing item data: " + e.getLocalizedMessage());
+            e.printStackTrace();
+        }
+        Item item = null;
+        if (itemObject != null) {
+            item = new Item(itemObject, profile, hero);
+        }
+
+        return item;
     }
 
     public Profile getProfileFromFile(File f) {
@@ -119,6 +153,14 @@ public class DiabloFileReader {
         DBObject profileObject = (DBObject) JSON.parse(profileData);
         profileObject.put("fileTime", time);
         profileObject.put("fileName", fileName);
+        
+        String profileName = (String) profileObject.get("battleTag");
+        if(profileName == null){
+            System.out.println("Profile has null battletag: "+profileObject.toString());
+            System.out.println("Invalid profile file, deleting it.");
+            f.delete();
+            return null;
+        }
 
         Profile profile = new Profile(profileObject);
 
@@ -160,7 +202,7 @@ public class DiabloFileReader {
                 e.printStackTrace();
             }
 
-            if (heroObject != null) {
+            if (heroObject != null && heroObject.get("id") != null) {
                 Hero h = new Hero(heroObject, profile.getProfileName(), "" + profile.getDataTime());
                 heroes.add(h);
             }

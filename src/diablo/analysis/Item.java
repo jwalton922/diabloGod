@@ -12,17 +12,28 @@ import java.util.HashMap;
  * @author Josh
  */
 public class Item {
-    private HashMap<String,Double> itemStats;
+
+    private HashMap<String, Double> itemStats = new HashMap<String, Double>();
     private String heroClass = "unknown";
     private int accountEliteKills = -1;
     private int characterEliteKills = -1;
     private int accountParagonlevel = -1;
     private int characterParagonLevel = -1;
     private long dataTime;
-    
-    
-    public Item(DBObject itemObject, Profile profile, Hero hero){
+
+    public Item(DBObject itemObject, Profile profile, Hero hero) {
+        heroClass = hero.getHeroClass();
         accountEliteKills = profile.getEliteKills();
+        characterEliteKills = hero.getEliteKills();
+        characterParagonLevel = hero.getParagonLevel();
+        if (itemObject != null && itemObject.get("attributesRaw") != null) {
+            DBObject attributes = (DBObject) itemObject.get("attributesRaw");
+            for (String attribute : attributes.keySet()) {
+                DBObject valueObject = (DBObject) attributes.get(attribute);
+                double value = Double.parseDouble(valueObject.get("max").toString());
+                itemStats.put(attribute, value);
+            }
+        }
 
     }
 
@@ -81,6 +92,4 @@ public class Item {
     public void setCharacterEliteKills(int characterEliteKills) {
         this.characterEliteKills = characterEliteKills;
     }
-    
-    
 }

@@ -7,6 +7,7 @@ package diablo.analysis;
 import com.mongodb.DBObject;
 import java.io.File;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -25,9 +26,12 @@ public class Hero {
     private long lastUpdated = -1;
     private String profileName = "unknown";
     private long dataTime = -1;
+    private int accountEliteKills = -1;
+    private int accountMaxParagonLevel = -1;
     //stats
     private Map<String, Double> statMap = new HashMap<String, Double>();
     private Map<String, String> itemMap = new HashMap<String, String>();
+    private List<Long> heroTimes; //list of data times hero was found
 
     public Hero(DBObject heroObject, String profileName, String time) {
         id = (Integer) heroObject.get("id");
@@ -36,7 +40,7 @@ public class Hero {
         level = (Integer) heroObject.get("level");
         paragonLevel = (Integer) heroObject.get("paragonLevel");
         hardcore = (Boolean) heroObject.get("hardcore");
-        lastUpdated = Long.parseLong(heroObject.get("lastUpdated").toString());
+        lastUpdated = Long.parseLong(heroObject.get("last-updated").toString());
         this.profileName = profileName;
         dataTime = Long.parseLong(time);
 
@@ -46,7 +50,7 @@ public class Hero {
         }
 
         DBObject statObject = (DBObject) heroObject.get("stats");
-        
+
         for (int i = 0; i < Constants.STATS.size(); i++) {
             String statValue = statObject.get(Constants.STATS.get(i)).toString();
             if (statValue != null) {
@@ -54,14 +58,14 @@ public class Hero {
             }
         }
         String heroId = heroObject.get("id").toString();
-        for(int i = 0; i < Constants.SLOTS.size(); i++){
-            String itemFileName = time+"_"+Constants.SLOTS.get(i)+"_"+heroId+"_"+profileName+".txt";
-            String fullItemFileName = DiabloFileReader.ITEMS_DIR+"/"+itemFileName;
+        for (int i = 0; i < Constants.SLOTS.size(); i++) {
+            String itemFileName = time + "_" + Constants.SLOTS.get(i) + "_" + heroId + "_" + profileName + ".txt";
+            String fullItemFileName = DiabloFileReader.ITEMS_DIR + "/" + itemFileName;
             File f = new File(fullItemFileName);
-            if(f.exists()){
-                itemMap.put(Constants.SLOTS.get(i), fullItemFileName );
+            if (f.exists()) {
+                itemMap.put(Constants.SLOTS.get(i), fullItemFileName);
             } else {
-                System.out.println("Could not find item file: "+fullItemFileName);
+                //System.out.println("Could not find item file: " + fullItemFileName);
             }
         }
 
@@ -84,6 +88,7 @@ public class Hero {
     }
 
     public int getLevel() {
+        //System.out.println("Returning hero level: "+level);
         return level;
     }
 
@@ -153,6 +158,38 @@ public class Hero {
 
     public void setItemMap(Map<String, String> itemMap) {
         this.itemMap = itemMap;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public int getAccountEliteKills() {
+        return accountEliteKills;
+    }
+
+    public void setAccountEliteKills(int accountEliteKills) {
+        this.accountEliteKills = accountEliteKills;
+    }
+
+    public int getAccountMaxParagonLevel() {
+        return accountMaxParagonLevel;
+    }
+
+    public void setAccountMaxParagonLevel(int accountMaxParagonLevel) {
+        this.accountMaxParagonLevel = accountMaxParagonLevel;
+    }
+
+    public List<Long> getHeroTimes() {
+        return heroTimes;
+    }
+
+    public void setHeroTimes(List<Long> heroTimes) {
+        this.heroTimes = heroTimes;
     }
     
     

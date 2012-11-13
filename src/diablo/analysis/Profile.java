@@ -5,6 +5,7 @@
 package diablo.analysis;
 
 import com.mongodb.DBObject;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,11 +27,20 @@ public class Profile {
     private int eliteKills = -1;
     private int kills = -1;
     private int hardcoreKills = -1;
+    private int maxParagonLevel = -1;
 
     public Profile(DBObject profileObject) {
         fileName = (String) profileObject.get("fileName");
         profileName = (String) profileObject.get("battleTag");
-        tagNumber = Integer.parseInt(profileName.split("#")[1]);
+        if(profileName == null){
+            System.out.println("Profile has null battletag: "+profileObject.toString());
+            System.out.println("Invalid profile file, deleting it.");
+            File f = new File(DiabloFileReader.PROFILE_DIR+"/"+fileName);
+            f.delete();
+            return;
+        }
+        profileName = profileName.replace("#", "-");
+        tagNumber = Integer.parseInt(profileName.split("-")[1]);
         dataTime = Long.parseLong(profileObject.get("fileTime").toString());
         lastUpdatedTime = Long.parseLong(profileObject.get("lastUpdated").toString());
         List heroList = (List) profileObject.get("heroes");
@@ -104,4 +114,14 @@ public class Profile {
     public int getHardcoreKills() {
         return hardcoreKills;
     }
+
+    public int getMaxParagonLevel() {
+        return maxParagonLevel;
+    }
+
+    public void setMaxParagonLevel(int maxParagonLevel) {
+        this.maxParagonLevel = maxParagonLevel;
+    }
+    
+    
 }
