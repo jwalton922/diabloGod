@@ -4,6 +4,7 @@
  */
 package diablodatagatherer;
 
+import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
@@ -29,10 +30,13 @@ public class ApiDataRetriever {
 
     public static final String API_ROOT = "http://us.battle.net/api/d3/";
     public static final String PROFILE_URL = "profile/";
-    public static final String ROOT_DIR = "/C:/Users/Josh/Dropbox/Public/diabloRawFiles";
+    public static final String ROOT_DIR = "/C:/Users/Josh/diabloRawData";
     private long time = System.currentTimeMillis();
     private List<String> itemSlots = new ArrayList<String>();
     private long wait = 1000;
+    Mongo m;
+    DB db;
+    DBCollection notFoundCollection = null;
 
     public ApiDataRetriever() {
 
@@ -55,11 +59,13 @@ public class ApiDataRetriever {
     public List<String> findProfileNames() {
         List<String> profileNames = new ArrayList<String>();
         try {
-            Mongo m = new Mongo("ds037907.mongolab.com", 37907);
-            DB db = m.getDB("diablo");
+            m = new Mongo("ds037907.mongolab.com", 37907);
+            db = m.getDB("diablo");
             db.authenticate("diabloUser", "diabloUser".toCharArray());
             DBCollection profiles = db.getCollection("profiles");
+            notFoundCollection = db.getCollection("notfound");
             DBCursor cursor = profiles.find();
+            cursor = cursor.skip(1000);
             while (cursor.hasNext()) {
                 DBObject profile = cursor.next();
                 profileNames.add((String) profile.get("profile"));
@@ -136,27 +142,27 @@ public class ApiDataRetriever {
 
     public void retrieveProfileData(String profile) {
         System.out.println("Processing profile: " + profile);
-        ClientRequest request = new ClientRequest(API_ROOT + PROFILE_URL + "/" + profile + "/");
+        ClientRequest request = new ClientRequest(API_ROOT + PROFILE_URL + profile + "/");
         ClientResponse<String> response = null;
         try {
             response = request.get(String.class);
-        } catch(ConnectException ce){
-            wait=wait*2;
+        } catch (ConnectException ce) {
+            wait = wait * 2;
             System.out.println("Connect exception");
             try {
-                System.out.println("Sleeping "+wait+" ms");
+                System.out.println("Sleeping " + wait + " ms");
                 Thread.sleep(wait);
                 System.out.println("Done sleeping");
                 return;
             } catch (Exception ex) {
             }
-        }catch (Exception e) {
-            System.out.println("Could not get profile, waiting for : "+wait);
+        } catch (Exception e) {
+            System.out.println("Could not get profile, waiting for : " + wait);
             wait = wait * 2;
 
             e.printStackTrace();
             try {
-                System.out.println("Sleeping "+wait+" ms");
+                System.out.println("Sleeping " + wait + " ms");
                 Thread.sleep(wait);
                 return;
             } catch (Exception ex) {
@@ -166,8 +172,25 @@ public class ApiDataRetriever {
         DBObject profileObject = null;
         try {
             profileObject = (DBObject) JSON.parse(profileString);
-            if((String) profileObject.get("code") != null){
-                System.out.println("API error retrieving profile for "+profile+": "+profileObject.get("code").toString());
+            if ((String) profileObject.get("code") != null) {
+                System.out.println("API error retrieving profile for " + profile + ": " + profileObject.toString() + ". Profile url: " + request.getUri());
+                if (profileObject.get("code").toString().equalsIgnoreCase("OOPS")) {
+                   
+                } else if(profileObject.get("code").toString().equalsIgnoreCase("NOTFOUND")){
+                    
+                    DBObject notFoundObject = new BasicDBObject();
+                    notFoundObject.put("profile", profile);
+                    notFoundCollection.insert(notFoundObject);
+                }else {
+                    wait+= 2000;
+                    try {
+                        System.out.println("Sleeping " + wait + " ms");
+                        Thread.sleep(wait);
+
+                    } catch (Exception ex) {
+                    }
+                   
+                }
                 return;
             }
             String dirName = ROOT_DIR + "/" + "profiles";
@@ -184,12 +207,13 @@ public class ApiDataRetriever {
             System.out.println("Error writing profile file: " + profileString);
             e.printStackTrace();
         }
-        
+
         List<Integer> characterIds = getCharacterIds(profileObject);
         if (characterIds == null || characterIds.size() == 0) {
             try {
                 wait = wait * 2;
-                System.out.println("Waiting for " + wait + " seconds");
+                System.out.println("Waiting for " + wait + " seconds because could not get character ids");
+                System.out.println("Bad profile string: "+profileObject.toString());
                 Thread.sleep(wait);
                 return;
             } catch (Exception e) {
@@ -198,7 +222,7 @@ public class ApiDataRetriever {
             System.out.println("call worked, resetting wait");
             wait = 1000;
         }
-        
+
         for (Integer characterId : characterIds) {
             String character = getCharacter(profile, characterId);
             String characterFileDir = ROOT_DIR + "/heroes/";
@@ -211,12 +235,12 @@ public class ApiDataRetriever {
             DBObject characterObject = null;
             try {
                 characterObject = (DBObject) JSON.parse(character);
-            } catch(Exception e){
-                System.out.println("Error parsing character for profile = "+profile+" id = "+characterId+". "+e.getLocalizedMessage());
+            } catch (Exception e) {
+                System.out.println("Error parsing character for profile = " + profile + " id = " + characterId + ". " + e.getLocalizedMessage());
                 e.printStackTrace();
             }
-            
-            if(characterObject == null || !(isValidAPIData(characterObject))){
+
+            if (characterObject == null || !(isValidAPIData(characterObject))) {
                 System.out.println("Invalid character object, trying next character");
                 continue;
             }
@@ -244,20 +268,20 @@ public class ApiDataRetriever {
                     String itemURL = (String) itemObject.get("tooltipParams");
                     //System.out.println("itemURl = "+itemURL);
                     String itemString = getItem(itemURL);
-                    
+
                     DBObject itemApiObject = null;
                     try {
                         itemApiObject = (DBObject) JSON.parse(itemString);
-                    } catch(Exception e){
-                        System.out.println("Error parsing item object for url: "+itemURL+". "+e.getLocalizedMessage());
+                    } catch (Exception e) {
+                        System.out.println("Error parsing item object for url: " + itemURL + ". " + e.getLocalizedMessage());
                         e.printStackTrace();
                     }
-                    
-                    if(itemApiObject == null || !(isValidAPIData(itemApiObject))){
+
+                    if (itemApiObject == null || !(isValidAPIData(itemApiObject))) {
                         System.out.println("Error in API retrieving item.");
                         continue;
                     }
-                    
+
                     String itemDirName = ROOT_DIR + "/items/";
                     File itemDir = new File(itemDirName);
                     if (!itemDir.exists()) {
@@ -283,9 +307,9 @@ public class ApiDataRetriever {
         }
         System.out.println("Finished processing characters for profile " + profile);
     }
-    
-    public static boolean isValidAPIData(DBObject object){
-        if(object != null && object.get("code") != null){
+
+    public static boolean isValidAPIData(DBObject object) {
+        if (object != null && object.get("code") != null) {
             return false;
         } else {
             return true;
@@ -320,7 +344,7 @@ public class ApiDataRetriever {
             ClientResponse<String> response = request.get(String.class);
             heroString = response.getEntity();
             characterObject = (DBObject) JSON.parse(heroString);
-            System.out.println("Character object: " + characterObject.toString());
+            //System.out.println("Character object: " + characterObject.toString());
 
         } catch (Exception e) {
             System.out.println("Error getting character object for " + profileName + " character id= " + characterId + "." + e.getMessage());
@@ -358,9 +382,11 @@ public class ApiDataRetriever {
         ApiDataRetriever dataRetriever = new ApiDataRetriever();
 
         List<String> sortedProfiles = dataRetriever.getSortedProfiles();
-
+        int count = 0;
         for (String profile : sortedProfiles) {
             dataRetriever.retrieveProfileData(profile);
+            count++;
+            System.out.println("Processed " + count + "/" + sortedProfiles.size() + " profiles");
         }
     }
 }

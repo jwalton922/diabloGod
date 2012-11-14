@@ -6,7 +6,9 @@ package diablo.analysis.analytics;
 
 import diablo.analysis.DataListener;
 import diablo.analysis.LatestDataGatherer;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -16,7 +18,14 @@ import java.util.List;
 public class AnalyticRunner {
     
     public static void main(String[] args){
-        AccountParagonLevelAnalytic analytic1 = new AccountParagonLevelAnalytic();
+        
+        MongoOutputter mongoOutputter = new MongoOutputter();
+        long startTime = System.currentTimeMillis();
+        SimpleDateFormat format = new SimpleDateFormat("YYYY-MM-dd");
+        Date date = new Date(startTime);
+        String dateString = format.format(date);
+        
+        AccountParagonLevelAnalytic analytic1 = new AccountParagonLevelAnalytic(mongoOutputter, dateString);
         
         List<DataListener> analytics = new ArrayList<DataListener>();
         
