@@ -53,6 +53,15 @@ public class ApiDataRetriever {
         itemSlots.add("rightFinger");
         itemSlots.add("leftFinger");
         itemSlots.add("neck");
+        
+        File rootTimeDir = new File(ROOT_DIR+"/"+time);
+        File timeItemDir = new File(ROOT_DIR+"/"+time+"/items");
+        if(!rootTimeDir.exists()){
+            rootTimeDir.mkdir();
+        }
+        if(!timeItemDir.exists()){
+            timeItemDir.mkdir();
+        }
 
     }
 
@@ -281,8 +290,8 @@ public class ApiDataRetriever {
                         System.out.println("Error in API retrieving item.");
                         continue;
                     }
-
-                    String itemDirName = ROOT_DIR + "/items/";
+                    
+                    String itemDirName = ROOT_DIR + "/"+time+"/items/";
                     File itemDir = new File(itemDirName);
                     if (!itemDir.exists()) {
                         itemDir.mkdir();

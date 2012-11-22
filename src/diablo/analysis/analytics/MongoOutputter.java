@@ -17,8 +17,10 @@ import com.mongodb.WriteResult;
 public class MongoOutputter {
     private Mongo m;
     private DBCollection statsCollection;
+    private boolean isTest = false;
     
-    public MongoOutputter(){
+    public MongoOutputter(boolean isTest){
+        this.isTest = isTest;
         try {
             m = new Mongo("ds037907.mongolab.com", 37907);
             DB db = m.getDB("diablo");
@@ -30,7 +32,10 @@ public class MongoOutputter {
     }
     
     public void writeStat(DBObject object){
-        
+        if(isTest){
+            System.out.println("Not writing stat, is test");
+            return;
+        }
         try {
             WriteResult result = statsCollection.insert(object);
             String error = result.getError();

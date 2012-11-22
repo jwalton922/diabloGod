@@ -18,7 +18,7 @@ import java.util.List;
  */
 public class DiabloFileReader {
 
-    public static String ROOT_DIR = "C:/Users/Josh/Dropbox/Public/diabloRawFiles";
+    public static String ROOT_DIR = "C:/Users/Josh/diabloRawData";
     public static String PROFILE_DIR = ROOT_DIR + "/profiles";
     public static String HERO_DIR = ROOT_DIR + "/heroes";
     public static String ITEMS_DIR = ROOT_DIR + "/items";
@@ -127,7 +127,10 @@ public class DiabloFileReader {
         }
         Item item = null;
         if (itemObject != null) {
-            item = new Item(itemObject, profile, hero);
+            
+            String[] itemSplit = file.getName().split("_");
+            
+            item = new Item(itemObject, profile, hero, itemSplit[1]);
         }
 
         return item;

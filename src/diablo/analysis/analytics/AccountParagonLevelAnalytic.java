@@ -62,6 +62,8 @@ public class AccountParagonLevelAnalytic implements DataListener {
         resultObject.put("analytic-name", this.getClass().getName());
         resultObject.put("date", date);
         
+        this.outputter.writeStat(resultObject);
+        
         
     }
 }

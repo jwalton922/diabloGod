@@ -38,6 +38,7 @@ public class LatestDataGatherer {
     }
     
     public void setMaxProfilesToCheck(int maxValue){
+        System.out.println("Max profiles to check: "+maxValue);
         this.maxProfilesToCheck = maxValue;
     }
 
@@ -102,6 +103,7 @@ public class LatestDataGatherer {
         if(maxProfilesToCheck < profileFiles.size()){
             maxProfileIt = maxProfilesToCheck;
         }
+        System.out.println("Max profiles to find: "+maxProfileIt);
         for (int i = 0; i < maxProfileIt; i++) {
             long start = System.currentTimeMillis();
             Profile profile = fileReader.getProfileFromFile(profileFiles.get(i));
@@ -113,6 +115,9 @@ public class LatestDataGatherer {
             List<Hero> heroes = new ArrayList<Hero>();
             List<Item> items = new ArrayList<Item>();
             int maxParagonLevel = -1;
+            if(!getHeroData){
+                continue;
+            }
             for (int j = 0; j < heroFiles.size(); j++) {
                 Hero hero = fileReader.getHeroFromFile(heroFiles.get(j).latestHeroFile, profile);
                 if(hero == null){
@@ -127,6 +132,9 @@ public class LatestDataGatherer {
                 heroes.add(hero);
                 if (hero.getParagonLevel() > maxParagonLevel) {
                     maxParagonLevel = hero.getParagonLevel();
+                }
+                if(!getItemData){
+                    continue;
                 }
                 for (int k = 0; k < Constants.SLOTS.size(); k++) {
                     Item item = getLatestItemForSlot(Constants.SLOTS.get(k), profile, hero);

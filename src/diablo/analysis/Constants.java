@@ -20,8 +20,15 @@ public class Constants {
     
     public static List<String> STATS = new ArrayList<String>();
     public static List<String> SLOTS = new ArrayList<String>();
-    
+    public static List<String> CHARACTER_CLASSES = new ArrayList<String>();
     static {
+        CHARACTER_CLASSES.add(BARB);
+        CHARACTER_CLASSES.add(DEMON_HUNTER);
+        CHARACTER_CLASSES.add(MONK);
+        CHARACTER_CLASSES.add(WITCH_DOCTOR);
+        CHARACTER_CLASSES.add(WIZARD);
+        
+        
         STATS.add("life");
         STATS.add("damage");
         STATS.add("attackSpeed");

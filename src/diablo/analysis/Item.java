@@ -12,7 +12,7 @@ import java.util.HashMap;
  * @author Josh
  */
 public class Item {
-
+    private String slot = "unknown";
     private HashMap<String, Double> itemStats = new HashMap<String, Double>();
     private String heroClass = "unknown";
     private int accountEliteKills = -1;
@@ -21,7 +21,8 @@ public class Item {
     private int characterParagonLevel = -1;
     private long dataTime;
 
-    public Item(DBObject itemObject, Profile profile, Hero hero) {
+    public Item(DBObject itemObject, Profile profile, Hero hero, String slot) {
+        this.slot = slot;
         heroClass = hero.getHeroClass();
         accountEliteKills = profile.getEliteKills();
         characterEliteKills = hero.getEliteKills();
@@ -36,6 +37,15 @@ public class Item {
         }
 
     }
+
+    public String getSlot() {
+        return slot;
+    }
+
+    public void setSlot(String slot) {
+        this.slot = slot;
+    } 
+    
 
     public HashMap<String, Double> getItemStats() {
         return itemStats;

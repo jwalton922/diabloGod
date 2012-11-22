@@ -15,33 +15,31 @@ import java.util.List;
  *
  * @author Josh
  */
-public class AnalyticRunner {
-    
-    public static void main(String[] args){
+public class ItemAnalyticRunner {
+
+    public static void main(String[] args) {
         boolean test = false;
         MongoOutputter mongoOutputter = new MongoOutputter(test);
         long startTime = System.currentTimeMillis();
         SimpleDateFormat format = new SimpleDateFormat("YYYY-MM-dd");
         Date date = new Date(startTime);
         String dateString = format.format(date);
-        
-        AccountParagonLevelAnalytic analytic1 = new AccountParagonLevelAnalytic(mongoOutputter, dateString);
-        AccountKillsAnalytic analytic2 = new AccountKillsAnalytic(mongoOutputter, dateString);
-        CharacterStatsAnalytic analytic3 = new CharacterStatsAnalytic(mongoOutputter, dateString);
-        
+
+        ItemAttributeCommonalityAnalytic analytic1 = new ItemAttributeCommonalityAnalytic(mongoOutputter, dateString);
+
+
         List<DataListener> analytics = new ArrayList<DataListener>();
-        
+
         analytics.add(analytic1);
-        analytics.add(analytic2);
-        analytics.add(analytic3);
-        
+
+
         LatestDataGatherer ldg = new LatestDataGatherer(analytics, true, true);
         ldg.setMinCharacterLevel(60);
-        //ldg.setMaxProfilesToCheck(100);
+        //ldg.setMaxProfilesToCheck(50);
         ldg.gatherLatestData();
-        
-        
-        for(DataListener analytic : analytics){
+
+
+        for (DataListener analytic : analytics) {
             analytic.outputResults();
         }
     }
