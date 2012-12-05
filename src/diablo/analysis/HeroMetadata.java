@@ -31,7 +31,7 @@ public class HeroMetadata {
         gender = (Integer) heroMetadataObject.get("gender");
         dead = (Boolean) heroMetadataObject.get("dead");
         heroClass =(String) heroMetadataObject.get("class");
-        lastUpdated = Long.parseLong(heroMetadataObject.get("last-updated").toString());
+        lastUpdated = Long.parseLong(heroMetadataObject.get("last-updated").toString()) * 1000;
     }
 
     public String getName() {

@@ -11,6 +11,7 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.Mongo;
 import com.mongodb.util.JSON;
+import diablo.analysis.Profile;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -28,6 +29,10 @@ import org.jboss.resteasy.client.ClientResponse;
  */
 public class ApiDataRetriever {
 
+    public static String LAST_UPDATE_SUM = "lastUpdateSum";
+    public static String LAST_UPDATE_PROFILE_COUNT = "lastUpdateProfileCount";
+    public static String LAST_UPDATE_AVG = "lastUpdateAvg";
+    public static String LAST_UPDATE = "lastUpdate";
     public static final String API_ROOT = "http://us.battle.net/api/d3/";
     public static final String PROFILE_URL = "profile/";
     public static final String ROOT_DIR = "/C:/Users/Josh/diabloRawData";
@@ -37,6 +42,8 @@ public class ApiDataRetriever {
     Mongo m;
     DB db;
     DBCollection notFoundCollection = null;
+    DBCollection rollingProfileInfoCollection = null;
+    public boolean writeEliteKillsToMongo = true;
 
     public ApiDataRetriever() {
 
@@ -53,13 +60,13 @@ public class ApiDataRetriever {
         itemSlots.add("rightFinger");
         itemSlots.add("leftFinger");
         itemSlots.add("neck");
-        
-        File rootTimeDir = new File(ROOT_DIR+"/"+time);
-        File timeItemDir = new File(ROOT_DIR+"/"+time+"/items");
-        if(!rootTimeDir.exists()){
+
+        File rootTimeDir = new File(ROOT_DIR + "/" + time);
+        File timeItemDir = new File(ROOT_DIR + "/" + time + "/items");
+        if (!rootTimeDir.exists()) {
             rootTimeDir.mkdir();
         }
-        if(!timeItemDir.exists()){
+        if (!timeItemDir.exists()) {
             timeItemDir.mkdir();
         }
 
@@ -73,8 +80,63 @@ public class ApiDataRetriever {
             db.authenticate("diabloUser", "diabloUser".toCharArray());
             DBCollection profiles = db.getCollection("profiles");
             notFoundCollection = db.getCollection("notfound");
+            rollingProfileInfoCollection = db.getCollection("eliteKills");
+            DBObject totalObjectSearch = new BasicDBObject();
+            totalObjectSearch.put("stats", "total");
+            boolean foundStats = false;
+            DBCursor statCursor = rollingProfileInfoCollection.find(totalObjectSearch);
+            DBObject statObject = null;
+            while (statCursor.hasNext()) {
+                foundStats = true;
+                statObject = statCursor.next();
+            }
+
+            if (!foundStats) {
+                System.out.println("Creating total stat object");
+                statObject = new BasicDBObject();
+                statObject.put("stats", "total");
+                statObject.put("eliteKillSum", 0);
+                statObject.put("profileCount", 0);
+                rollingProfileInfoCollection.insert(statObject);
+            } else {
+                if (statObject.get(LAST_UPDATE_SUM) == null) {
+                    statObject.put(LAST_UPDATE_SUM, 0L);
+                }
+                if (statObject.get(LAST_UPDATE_PROFILE_COUNT) == null) {
+                    statObject.put(LAST_UPDATE_PROFILE_COUNT, 0);
+                }
+                if (statObject.get(LAST_UPDATE_AVG) == null) {
+                    statObject.put(LAST_UPDATE_AVG, 0.0);
+                }
+                rollingProfileInfoCollection.update(totalObjectSearch, statObject, true, false);
+            }
+            //made a mistake when first creating, this code fixed that, should not be needed again
+//            if (false) {
+//                //reset lastUpdatedTime
+//                System.out.println("Reseting lat update time");
+//                DBObject timeSearch = new BasicDBObject();
+//                DBObject timeFilter = new BasicDBObject();
+//                timeFilter.put("$gt", 0L);
+//                timeSearch.put(LAST_UPDATE, timeFilter);
+//                DBCursor timeCursor = rollingProfileInfoCollection.find(timeSearch);
+////                List<DBObject> objectsToUpdate = new ArrayList<DBObject>();
+//                while (timeCursor.hasNext()) {
+//                    DBObject timeProfileObject = timeCursor.next();
+//                    DBObject futureSearch = new BasicDBObject("profile", timeProfileObject.get("profile"));
+////                    objectsToUpdate.add(futureSearch);
+//                    timeProfileObject.put(LAST_UPDATE, 0);
+//                    rollingProfileInfoCollection.update(futureSearch, timeProfileObject, false, false);
+//
+//                }
+//
+//                System.out.println("Finished updating");
+//            }
+
+            System.out.println("Done finding stat objects");
+
+
             DBCursor cursor = profiles.find();
-            cursor = cursor.skip(1000);
+            cursor = cursor.skip(4000);
             while (cursor.hasNext()) {
                 DBObject profile = cursor.next();
                 profileNames.add((String) profile.get("profile"));
@@ -149,6 +211,95 @@ public class ApiDataRetriever {
         return sortProfiles(profiles);
     }
 
+    private void updateRollingProfileInfo(String profileName, Profile profile) {
+        String eliteKillString = "eliteKills";
+        String lastUpdateString = "lastUpdate";
+        DBObject searchObject = new BasicDBObject();
+        searchObject.put("profile", profileName);
+        DBCursor rollingInfoCursor = rollingProfileInfoCollection.find(searchObject);
+        int previousEliteKills = 0;
+        DBObject serverProfileObject = null;
+        boolean newProfile = false;
+        long previousLastUpdated = 0;
+        while (rollingInfoCursor.hasNext()) {
+            serverProfileObject = rollingInfoCursor.next();
+            if (serverProfileObject != null) {
+                int serverEliteKills = (Integer) serverProfileObject.get(eliteKillString);
+                previousEliteKills = serverEliteKills;
+                if (serverProfileObject.get(lastUpdateString) != null) {
+                    previousLastUpdated = Long.parseLong(serverProfileObject.get(lastUpdateString).toString());
+                }
+            }
+        }
+
+        if (previousEliteKills == 0) {
+            newProfile = true;
+            serverProfileObject = new BasicDBObject();
+            serverProfileObject.put("profile", profileName);
+        }
+
+        int newEliteKills = profile.getEliteKills() - previousEliteKills;
+
+        System.out.println("Is new profile: " + newProfile + ". Profile kills: " + profile.getEliteKills() + ". previous elite kills: " + previousEliteKills + " previousLastUpdated: " + previousLastUpdated + " current last update: " + profile.getLastUpdatedTime());
+        if (newEliteKills > 0) {
+            serverProfileObject.put(eliteKillString, profile.getEliteKills());
+
+            long timeSinceLastUpdate = System.currentTimeMillis() - (profile.getLastUpdatedTime());
+            long threeMonths = 7776000000L;
+            if(timeSinceLastUpdate > threeMonths){
+                timeSinceLastUpdate = threeMonths;
+            }
+            System.out.println("Time since last update: " + timeSinceLastUpdate);
+            if (timeSinceLastUpdate > 0) {
+                serverProfileObject.put(LAST_UPDATE, timeSinceLastUpdate);
+            }
+
+
+            rollingProfileInfoCollection.update(searchObject, serverProfileObject, true, false);
+            DBObject totalObjectSearch = new BasicDBObject();
+            totalObjectSearch.put("stats", "total");
+            DBCursor statCursor = rollingProfileInfoCollection.find(totalObjectSearch);
+            while (statCursor.hasNext()) {
+                DBObject statObject = statCursor.next();
+                int eliteKillSum = (Integer) statObject.get("eliteKillSum");
+                int profileCount = (Integer) statObject.get("profileCount");
+                int lastUpdatedProfileCount = Integer.parseInt(statObject.get(LAST_UPDATE_PROFILE_COUNT).toString());
+                long lastUpdatedSum = Long.parseLong(statObject.get(LAST_UPDATE_SUM).toString());
+                if (newProfile) {
+                    profileCount = profileCount + 1;
+                    statObject.put("profileCount", profileCount);
+                }
+                if (previousLastUpdated == 0) {
+                    lastUpdatedProfileCount++;
+                    statObject.put(LAST_UPDATE_PROFILE_COUNT, lastUpdatedProfileCount);
+                } else {
+                    lastUpdatedSum = lastUpdatedSum - previousLastUpdated;
+                }
+
+                if (timeSinceLastUpdate > 0) {
+                    lastUpdatedSum += timeSinceLastUpdate;
+                    double lastUpdatedAvg = lastUpdatedSum / (1.0 * lastUpdatedProfileCount);
+                    statObject.put(LAST_UPDATE_AVG, lastUpdatedAvg);
+                }
+                
+                eliteKillSum += newEliteKills;
+                double average = eliteKillSum / (1.0 * profileCount);
+
+                statObject.put("eliteKillAvg", average);
+                statObject.put("eliteKillSum", eliteKillSum);
+                statObject.put(LAST_UPDATE_SUM, lastUpdatedSum);
+                
+                System.out.println("New stat object: " + statObject.toString());
+
+                rollingProfileInfoCollection.update(totalObjectSearch, statObject, true, false);
+
+            }
+        }
+
+
+
+    }
+
     public void retrieveProfileData(String profile) {
         System.out.println("Processing profile: " + profile);
         ClientRequest request = new ClientRequest(API_ROOT + PROFILE_URL + profile + "/");
@@ -184,24 +335,31 @@ public class ApiDataRetriever {
             if ((String) profileObject.get("code") != null) {
                 System.out.println("API error retrieving profile for " + profile + ": " + profileObject.toString() + ". Profile url: " + request.getUri());
                 if (profileObject.get("code").toString().equalsIgnoreCase("OOPS")) {
-                   
-                } else if(profileObject.get("code").toString().equalsIgnoreCase("NOTFOUND")){
-                    
+                } else if (profileObject.get("code").toString().equalsIgnoreCase("NOTFOUND")) {
+
                     DBObject notFoundObject = new BasicDBObject();
                     notFoundObject.put("profile", profile);
                     notFoundCollection.insert(notFoundObject);
-                }else {
-                    wait+= 2000;
+                } else {
+                    wait += 2000;
                     try {
                         System.out.println("Sleeping " + wait + " ms");
                         Thread.sleep(wait);
 
                     } catch (Exception ex) {
                     }
-                   
+
                 }
                 return;
             }
+
+            //update rolling profile info
+            profileObject.put("fileTime", time);
+            if (writeEliteKillsToMongo) {
+                Profile newProfileInfo = new Profile(profileObject);
+                updateRollingProfileInfo(profile, newProfileInfo);
+            }
+
             String dirName = ROOT_DIR + "/" + "profiles";
             File dir = new File(dirName);
             if (!dir.exists()) {
@@ -213,7 +371,7 @@ public class ApiDataRetriever {
             profileWriter.flush();
             profileWriter.close();
         } catch (Exception e) {
-            System.out.println("Error writing profile file: " + profileString);
+            System.out.println("Error writing profile file: " + profile);
             e.printStackTrace();
         }
 
@@ -222,7 +380,7 @@ public class ApiDataRetriever {
             try {
                 wait = wait * 2;
                 System.out.println("Waiting for " + wait + " seconds because could not get character ids");
-                System.out.println("Bad profile string: "+profileObject.toString());
+                System.out.println("Bad profile string: " + profileObject.toString());
                 Thread.sleep(wait);
                 return;
             } catch (Exception e) {
@@ -290,8 +448,8 @@ public class ApiDataRetriever {
                         System.out.println("Error in API retrieving item.");
                         continue;
                     }
-                    
-                    String itemDirName = ROOT_DIR + "/"+time+"/items/";
+
+                    String itemDirName = ROOT_DIR + "/" + time + "/items/";
                     File itemDir = new File(itemDirName);
                     if (!itemDir.exists()) {
                         itemDir.mkdir();
@@ -393,6 +551,10 @@ public class ApiDataRetriever {
         List<String> sortedProfiles = dataRetriever.getSortedProfiles();
         int count = 0;
         for (String profile : sortedProfiles) {
+            if (count < 3500) {
+                count++;
+                continue;
+            }
             dataRetriever.retrieveProfileData(profile);
             count++;
             System.out.println("Processed " + count + "/" + sortedProfiles.size() + " profiles");

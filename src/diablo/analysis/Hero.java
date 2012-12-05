@@ -40,7 +40,7 @@ public class Hero {
         level = (Integer) heroObject.get("level");
         paragonLevel = (Integer) heroObject.get("paragonLevel");
         hardcore = (Boolean) heroObject.get("hardcore");
-        lastUpdated = Long.parseLong(heroObject.get("last-updated").toString());
+        lastUpdated = Long.parseLong(heroObject.get("last-updated").toString())*1000;
         this.profileName = profileName;
         dataTime = Long.parseLong(time);
 

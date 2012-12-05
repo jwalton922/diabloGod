@@ -42,12 +42,16 @@ public class Profile {
         profileName = profileName.replace("#", "-");
         tagNumber = Integer.parseInt(profileName.split("-")[1]);
         dataTime = Long.parseLong(profileObject.get("fileTime").toString());
-        lastUpdatedTime = Long.parseLong(profileObject.get("lastUpdated").toString());
+        lastUpdatedTime = Long.MIN_VALUE;
         List heroList = (List) profileObject.get("heroes");
         for (int i = 0; i < heroList.size(); i++) {
             try {
                 DBObject heroObject = (DBObject) heroList.get(i);
+                
                 HeroMetadata heroData = new HeroMetadata(heroObject);
+                if(heroData.getLastUpdated() > lastUpdatedTime){
+                    lastUpdatedTime = heroData.getLastUpdated();
+                }
                 heroMetadata.add(heroData);
             } catch (Exception e) {
                 System.out.println("PROBABLY Unexpected object type in hero list! Type is " + heroList.get(i).getClass().getName());
